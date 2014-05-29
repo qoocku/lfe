@@ -115,7 +115,7 @@ Erlang code.
 %% Build a symbol from list of legal characters, else error.
 
 symbol_token(Cs, L) ->
-    case catch {ok, ?unhyphen_symbol(list_to_atom(Cs))} of
+    case catch {ok, list_to_atom(?unhyphen_symbol(Cs))} of
     {ok,S} -> {token,{symbol,L,S}};
     _ -> {error,"illegal symbol"}
     end.
