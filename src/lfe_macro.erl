@@ -726,6 +726,8 @@ exp_predef(['defrecord'|Def], Env, St) ->
 %% Include-XXX as macros for now. Move to top-level forms?
 exp_predef(['include-file'|Ibody], Env, St) ->
     lfe_macro_include:file(Ibody, Env, St);
+exp_predef(['include_lib'|Ibody], Env, St) ->
+    exp_predef(['include-lib'|Ibody], Env, St);
 exp_predef(['include-lib'|Ibody], Env, St) ->
     lfe_macro_include:lib(Ibody, Env, St);
 %% Compatibility macros for the older Scheme like syntax.

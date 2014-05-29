@@ -168,7 +168,8 @@ collect_form(['define-function',Func,Body], L, St) ->
         {[{Func,Body,L}],St};
     _ -> {[],bad_form_error(L, 'define-function', St)}
     end;
-collect_form(_, L, St) ->
+collect_form(F, L, St) ->
+    io:format("*** UKNOWN Form: ~p~n", [F]),
     {[],add_error(L, unknown_form, St)}.
 
 check_mdef([[export,all]|Mdef], L, St) ->    %Pass 'all' along
