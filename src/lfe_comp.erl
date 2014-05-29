@@ -28,6 +28,7 @@
 -import(orddict, [store/3,find/2]).
 
 -include_lib("compiler/src/core_parse.hrl").
+-include("unhyphen-symbol.hrl").
 
 -record(comp, {base="",             %Base name
                odir=".",            %Output directory
@@ -240,7 +241,7 @@ do_passes([{done,Fun,Ext}|_], St) ->
 do_passes([], St) -> {ok,St}.            %Got to the end, everything ok!
 
 do_save_file(Fun, Ext, St) ->
-    Name = filename:join(St#comp.odir, St#comp.base ++ ["."|Ext]),
+    Name = filename:join(St#comp.odir, ?unhyphen_symbol(St#comp.base) ++ ["."|Ext]),
     %% delayed_write useful here but plays havoc with erjang.
     case file:open(Name, [write]) of
     {ok,File} ->

@@ -109,11 +109,13 @@ Erlang code.
 
 -import(string, [substr/2,substr/3]).
 
+-include("unhyphen-symbol.hrl").
+
 %% symbol_token(Chars, Line) -> {token,{symbol,Line,Symbol}} | {error,E}.
 %% Build a symbol from list of legal characters, else error.
 
 symbol_token(Cs, L) ->
-    case catch {ok,list_to_atom(Cs)} of
+    case catch {ok, ?unhyphen_symbol(list_to_atom(Cs))} of
     {ok,S} -> {token,{symbol,L,S}};
     _ -> {error,"illegal symbol"}
     end.
