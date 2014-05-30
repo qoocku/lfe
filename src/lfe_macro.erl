@@ -756,8 +756,7 @@ exp_predef([defmodule|Mdef], _, St) ->
                 [Mod|_] -> Mod                  %Normal module
             end,
     MODULE = [defmacro,'MODULE',[],?BQ(?Q(Mname))],
-    FILE   = [defmacro,'FILE',[],?BQ(?Q(atom_to_list(Mname) ++ ".lfe"))],
-    {yes,[progn,[define_module|Mdef],MODULE,FILE],St#mac{module=Mname}};
+    {yes,[progn,[define_module|Mdef],MODULE],St#mac{module=Mname}};
 exp_predef([defun,Name|Def], _, St) ->
     %% Educated guess whether traditional (defun name (a1 a2 ...) ...)
     %% or matching (defun name (patlist1 ...) (patlist2 ...))
@@ -803,6 +802,12 @@ exp_predef([qlc,LC,Opts], Env, St) -> exp_qlc(LC, [Opts], Env, St);
 %% Some predefined file macros.
 exp_predef(['MODULE'], _, St) ->
     {yes,?Q(St#mac.module),St};
+exp_predef(['MODULE_STRING'], _, St) ->
+    {yes,?Q(atom_to_list(St#mac.module)),St};
+exp_predef(['FILE'], _, St) ->
+    {yes,?Q(atom_to_list(St#mac.module) ++ ".lfe"),St};
+exp_predef(['MACHINE'], _, St) ->
+    {yes,?Q(?MACHINE),St};
 exp_predef(['LINE'], _, St) ->
     {yes,?Q(St#mac.line),St};
 exp_predef([Fun|As], _, St) when is_atom(Fun) ->
