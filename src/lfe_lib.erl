@@ -28,14 +28,14 @@
 %% Standard lisp library.
 -export([is_lfe_bif/2,
          acons/3,pairlis/2,pairlis/3,
-         assoc/2,'assoc-if'/2,'assoc-if-not'/2,
-         rassoc/2,'rassoc-if'/2,'rassoc-if-not'/2,
-         subst/3,'subst-if'/3,'subst-if-not'/3,sublis/2,
+         assoc/2,assoc_if/2,'assoc-if-not'/2,
+         rassoc/2,rassoc_if/2,'rassoc-if-not'/2,
+         subst/3,subst_if/3,'subst-if-not'/3,sublis/2,
          eval/1,eval/2,
-         'macro-function'/1,'macro-function'/2,
+         macro_function/1,macro_function/2,
          macroexpand/1,macroexpand/2,
          'macroexpand-1'/1,'macroexpand-1'/2,
-         'macroexpand-all'/1,'macroexpand-all'/2]).
+         macroexpand_all/1,macroexpand_all/2]).
 
 %% Miscellaneous useful LFE functions.
 -export([format_exception/6,format_stacktrace/3]).
@@ -94,14 +94,14 @@ is_core_form(tuple) -> true;
 is_core_form(binary) -> true;
 %% Core closure special forms.
 is_core_form(lambda) -> true;
-is_core_form('match-lambda') -> true;
+is_core_form(match_lambda) -> true;
 is_core_form('let') -> true;
-is_core_form('let-function') -> true;
-is_core_form('letrec-function') -> true;
-is_core_form('let-macro') -> true;
+is_core_form(let_function) -> true;
+is_core_form(letrec_function) -> true;
+is_core_form(let_macro) -> true;
 is_core_form('eval-when-compile') -> true;
-is_core_form('define-function') -> true;
-is_core_form('define-macro') -> true;
+is_core_form(define_function) -> true;
+is_core_form(define_macro) -> true;
 %% Core control special forms.
 is_core_form('progn') -> true;
 is_core_form('if') -> true;
@@ -180,25 +180,25 @@ is_lfe_bif(acons, 3) -> true;
 is_lfe_bif(pairlis, 2) -> true;
 is_lfe_bif(pairlis, 3) -> true;
 is_lfe_bif(assoc, 2) -> true;
-is_lfe_bif('assoc-if', 2) -> true;
+is_lfe_bif(assoc_if, 2) -> true;
 is_lfe_bif('assoc-if-not', 2) -> true;
 is_lfe_bif(rassoc, 2) -> true;
-is_lfe_bif('rassoc-if', 2) -> true;
+is_lfe_bif(rassoc_if, 2) -> true;
 is_lfe_bif('rassoc-if-not', 2) -> true;
 is_lfe_bif(subst, 3) -> true;
-is_lfe_bif('subst-if', 3) -> true;
+is_lfe_bif(subst_if, 3) -> true;
 is_lfe_bif('subst-if-not', 3) -> true;
 is_lfe_bif(sublis, 2) -> true;
 is_lfe_bif(eval, 1) -> true;
 is_lfe_bif(eval, 2) -> true;
-is_lfe_bif('macro-function', 1) -> true;
-is_lfe_bif('macro-function', 2) -> true;
+is_lfe_bif(macro_function, 1) -> true;
+is_lfe_bif(macro_function, 2) -> true;
 is_lfe_bif(macroexpand, 1) -> true;
 is_lfe_bif(macroexpand, 2) -> true;
 is_lfe_bif('macroexpand-1', 1) -> true;
 is_lfe_bif('macroexpand-1', 2) -> true;
-is_lfe_bif('macroexpand-all', 1) -> true;
-is_lfe_bif('macroexpand-all', 2) -> true;
+is_lfe_bif(macroexpand_all, 1) -> true;
+is_lfe_bif(macroexpand_all, 2) -> true;
 is_lfe_bif(_, _) -> false.
 
 acons(K, V, Alist) -> [[K|V]|Alist].
@@ -213,12 +213,12 @@ assoc(K, [[K|_]=Pair|_]) -> Pair;
 assoc(K, [_|L]) -> assoc(K, L);
 assoc(_, []) -> [].
 
-'assoc-if'(Pred, [[K|_]=Pair|L]) ->
+assoc_if(Pred, [[K|_]=Pair|L]) ->
     case Pred(K) of
     true -> Pair;
-    false -> 'assoc-if'(Pred, L)
+    false -> assoc_if(Pred, L)
     end;
-'assoc-if'(_, []) -> [].
+assoc_if(_, []) -> [].
 
 'assoc-if-not'(Pred, [[K|_]=Pair|L]) ->
     case Pred(K) of
@@ -231,12 +231,12 @@ rassoc(V, [[_|V]=Pair|_]) -> Pair;
 rassoc(V, [_|L]) -> rassoc(V, L);
 rassoc(_, []) -> [].
 
-'rassoc-if'(Pred, [[_|V]=Pair|L]) ->
+rassoc_if(Pred, [[_|V]=Pair|L]) ->
     case Pred(V) of
     true -> Pair;
-    false -> 'rassoc-if'(Pred, L)
+    false -> rassoc_if(Pred, L)
     end;
-'rassoc-if'(_, []) -> [].
+rassoc_if(_, []) -> [].
 
 'rassoc-if-not'(Pred, [[_|V]=Pair|L]) ->
     case Pred(V) of
@@ -254,13 +254,13 @@ subst(_, _, Tree) -> Tree.
 
 %% subst-if(New, Test, Tree) -> Tree.
 
-'subst-if'(New, Test, Tree) ->
+subst_if(New, Test, Tree) ->
     case Test(Tree) of
     true -> New;
     false ->
         case Tree of
         [H|T] ->
-            ['subst-if'(New, Test, H)|'subst-if'(New, Test, T)];
+            [subst_if(New, Test, H)|subst_if(New, Test, T)];
         _ -> Tree
         end
     end.
@@ -294,8 +294,8 @@ sublis(Alist, Tree) ->
 eval(Sexpr) -> eval(Sexpr, lfe_env:new()).  %Empty environment.
 eval(Sexpr, Env) -> lfe_eval:expr(Sexpr, Env).
 
-'macro-function'(Symb) -> 'macro-function'(Symb, lfe_env:new()).
-'macro-function'(Symb, Env) ->
+macro_function(Symb) -> macro_function(Symb, lfe_env:new()).
+macro_function(Symb, Env) ->
     case lfe_env:get_mbinding(Symb, Env) of
         {yes,Macro} ->
             Macro;
@@ -316,8 +316,8 @@ macroexpand(Form, Env) ->
         no -> Form
     end.
 
-'macroexpand-all'(Form) -> 'macroexpand-all'(Form, lfe_env:new()).
-'macroexpand-all'(Form, Env) -> lfe_macro:expand_expr_all(Form, Env).
+macroexpand_all(Form) -> macroexpand_all(Form, lfe_env:new()).
+macroexpand_all(Form, Env) -> lfe_macro:expand_expr_all(Form, Env).
 
 %% Miscellaneous useful LFE functions.
 

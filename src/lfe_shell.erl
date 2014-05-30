@@ -45,7 +45,7 @@
 -define(Q(E), [quote,E]).
 -define(BQ(E), [backquote,E]).
 -define(UQ(E), [unquote,E]).
--define(UQ_S(E), ['unquote-splicing',E]).
+-define(UQ_S(E), [unquote_splicing,E]).
 
 %% Shell state.
 -record(state, {curr,save,base,             %Current, save and base env
@@ -152,7 +152,7 @@ add_shell_macros(Env0) ->
     Ms = [{c,[lambda,[args,'$ENV'],?BQ([':',lfe_shell,c,?UQ_S(args)])]},
           {ec,[lambda,[args,'$ENV'],?BQ([':',lfe_shell,ec,?UQ_S(args)])]},
           {l,[lambda,[args,'$ENV'],?BQ([':',lfe_shell,l,[list|?UQ(args)]])]},
-          {m,['match-lambda',
+          {m,[match_lambda,
               [[[],'$ENV'],?BQ([':',lfe_shell,m])],
               [[ms,'$ENV'],?BQ([':',lfe_shell,m,[list|?UQ(ms)]])]]}
          ],
@@ -201,14 +201,14 @@ eval_form_1([unslurp|_], St) ->
 eval_form_1([run|Args], St0) ->
     {Value,St1} = run(Args, St0),
     {Value,St1};
-eval_form_1(['define-function',Name,Def], #state{curr=Ce0}=St) ->
+eval_form_1([define_function,Name,Def], #state{curr=Ce0}=St) ->
     Ar = function_arity(Def),
     Ce1 = lfe_eval:add_dynamic_func(Name, Ar, Def, Ce0),
     {Name,St#state{curr=Ce1}};
-eval_form_1(['define-macro',Name,Def], #state{curr=Ce0}=St) ->
+eval_form_1([define_macro,Name,Def], #state{curr=Ce0}=St) ->
     Ce1 = add_mbinding(Name, Def, Ce0),
     {Name,St#state{curr=Ce1}};
-eval_form_1(['reset-environment'], #state{base=Be}=St) ->
+eval_form_1([reset_environment], #state{base=Be}=St) ->
     {ok,St#state{curr=Be}};
 eval_form_1(Expr, St) ->
     %% General case just evaluate the expression.
@@ -216,7 +216,7 @@ eval_form_1(Expr, St) ->
 
 function_arity([lambda,As|_]) ->
     length(As);
-function_arity(['match-lambda',[Pats|_]|_]) ->
+function_arity([match_lambda,[Pats|_]|_]) ->
     length(Pats).
 
 list_errors(Es) -> list_ews("~w: ~s\n", Es).
@@ -337,13 +337,13 @@ slurp_ews(File, Format, Ews) ->
                     lfe_io:format(Format, [File,Line,Cs])
             end, Ews).
 
-collect_form(['define-module',Mod|Mdef], _, St0) ->
+collect_form([define_module,Mod|Mdef], _, St0) ->
     St1 = collect_mdef(Mdef, St0),
     {[],St1#slurp{mod=Mod}};
-collect_form(['extend-module'|Mdef], _, St0) ->
+collect_form([extend_module|Mdef], _, St0) ->
     St1 = collect_mdef(Mdef, St0),
     {[],St1};
-collect_form(['define-function',F,Def], _, St) ->
+collect_form([define_function,F,Def], _, St) ->
     Ar = function_arity(Def),
     {[{F,Ar,Def}],St}.
 

@@ -87,7 +87,7 @@ from_expr({bin,_,Segs}, Vt0, St0) ->
 %% Core closure special forms.
 from_expr({'fun',_,{clauses,Cls}}, Vt0, St0) ->
     {Lcls,Vt1,St1} = from_fun_cls(Cls, Vt0, St0),
-    {['match-lambda'|Lcls],Vt1,St1};        %Don't bother using lambda
+    {[match_lambda|Lcls],Vt1,St1};        %Don't bother using lambda
 from_expr({'fun',_,{function,F,A}}, Vt, St) ->
     {['fun',F,A],Vt,St};                    %Return macros here?
 from_expr({'fun',_,{function,M,F,A}}, Vt, St) ->
@@ -453,7 +453,7 @@ to_expr([binary|Segs], L, Vt, St0) ->
 to_expr([lambda,As|B], L, Vt, St0) ->
     {Ecl,St1} = to_fun_cl([As|B], L, Vt, St0),
     {{'fun',L,{clauses,[Ecl]}},St1};
-to_expr(['match-lambda'|Cls], L, Vt, St0) ->
+to_expr([match_lambda|Cls], L, Vt, St0) ->
     {Ecls,St1} = to_fun_cls(Cls, L, Vt, St0),
     {{'fun',L,{clauses,Ecls}},St1};
 to_expr(['fun',F,A], L, _, St) -> {{'fun',L,{function,F,A}},St};
@@ -586,7 +586,7 @@ to_let_bindings(Lbs, L, Vt, St) ->
 %%  If/case/receive/try clauses.
 
 to_icrt_cls(Cls, L, Vt, St) ->
-    Fun = fun (Cl, St0) -> to_icrt_cl(Cl, L, Vt, St0) end, 
+    Fun = fun (Cl, St0) -> to_icrt_cl(Cl, L, Vt, St0) end,
     mapfoldl(Fun, St, Cls).
 
 to_icrt_cl([P,['when'|G]|B], L, Vt0, St0) ->

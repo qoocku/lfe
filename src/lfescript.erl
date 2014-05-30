@@ -148,7 +148,7 @@ expand_macros(Fs0, File, _, _) ->
 %%  make lfe_lint happy.
 
 check_code(Fs, File, _, _) ->
-    Module = [{['define-module',dummy,[export,[main,1]]],1}|Fs],
+    Module = [{[define_module,dummy,[export,[main,1]]],1}|Fs],
     case lfe_lint:module(Module, []) of
     {ok,Ws} ->
         list_warnings(File, Ws);
@@ -161,9 +161,9 @@ make_env(Fs, Fenv, _, _, _) ->
     {Fbs,null} = lfe_lib:proc_forms(fun collect_form/3, Fs, null),
     lfe_eval:make_letrec_env(Fbs, Fenv).
 
-collect_form(['define-function',F,[lambda,As|_]=Lambda], _, St) ->
+collect_form([define_function,F,[lambda,As|_]=Lambda], _, St) ->
     {[{F,length(As),Lambda}],St};
-collect_form(['define-function',F,['match-lambda',[Pats|_]|_]=Match], _, St) ->
+collect_form([define_function,F,[match_lambda,[Pats|_]|_]=Match], _, St) ->
     {[{F,length(Pats),Match}],St}.
 
 %% eval_code(Fenv, File, Args, Lopts) -> Res.

@@ -112,16 +112,16 @@ eval_expr([binary|Bs], Env) -> eval_binary(Bs, Env);
 eval_expr([map|As], Env) ->
     Pairs = map_pairs(As, Env),
     maps:from_list(Pairs);
-eval_expr(['get-map',Map,K], Env) ->
+eval_expr([get_map,Map,K], Env) ->
     Key = map_key(K),
     maps:get(Key, eval_expr(Map, Env));
-eval_expr(['set-map',M|As], Env) ->
+eval_expr([set_map,M|As], Env) ->
     Map = eval_expr(M, Env),
     Pairs = map_pairs(As, Env),
     foldl(fun ({K,V}, M) -> maps:put(K, V, M) end, Map, Pairs);
-eval_expr(['upd-map'|As], Env) ->
-    eval_expr(['update-map'|As], Env);
-eval_expr(['update-map',M|As], Env) ->
+eval_expr([upd_map|As], Env) ->
+    eval_expr([update_map|As], Env);
+eval_expr([update_map,M|As], Env) ->
     Map = eval_expr(M, Env),
     Pairs = map_pairs(As, Env),
     foldl(fun ({K,V}, M) -> maps:update(K, V, M) end, Map, Pairs);
@@ -137,13 +137,13 @@ eval_expr(['mupd'|As], Env) ->
 %% Handle the Core closure special forms.
 eval_expr([lambda|Body], Env) ->
     eval_lambda(Body, Env);
-eval_expr(['match-lambda'|Cls], Env) ->
+eval_expr([match_lambda|Cls], Env) ->
     eval_match_lambda(Cls, Env);
 eval_expr(['let'|Body], Env) ->
     eval_let(Body, Env);
-eval_expr(['let-function'|Body], Env) ->
+eval_expr([let_function|Body], Env) ->
     eval_let_function(Body, Env);
-eval_expr(['letrec-function'|Body], Env) ->
+eval_expr([letrec_function|Body], Env) ->
     eval_letrec_function(Body, Env);
 %% Handle the Core control special forms.
 eval_expr(['progn'|Body], Env) ->
@@ -450,10 +450,10 @@ eval_let_function([Fbs|Body], Env0) ->
           end,
     Env1 = foldl(fun ([V,[lambda,Args|_]=Lambda], E) when is_atom(V) ->
                          Add(V, length(Args), Lambda, Env0, E);
-                     ([V,['match-lambda',[Pats|_]|_]=Match], E)
+                     ([V,[match_lambda,[Pats|_]|_]=Match], E)
                        when is_atom(V) ->
                          Add(V, length(Pats), Match, Env0, E);
-                     (_, _) -> erlang:error({bad_form,'let-function'})
+                     (_, _) -> erlang:error({bad_form,let_function})
                  end, Env0, Fbs),
     %% io:fwrite("elf: ~p\n", [{Body,Env1}]),
     eval_body(Body, Env1).
@@ -466,9 +466,9 @@ eval_letrec_function([Fbs0|Body], Env0) ->
     %% Check and abstract out function bindings.
     Fbs1 = map(fun ([V,[lambda,Args|_]=Lambda]) when is_atom(V) ->
                        {V,length(Args),Lambda};
-                   ([V,['match-lambda',[Pats|_]|_]=Match]) when is_atom(V) ->
+                   ([V,[match_lambda,[Pats|_]|_]=Match]) when is_atom(V) ->
                        {V,length(Pats),Match};
-                   (_) -> erlang:error({bad_form,'letrec-function'})
+                   (_) -> erlang:error({bad_form,letrec_function})
                end, Fbs0),
     Env1 = make_letrec_env(Fbs1, Env0),
     %% io:fwrite("elrf: ~p\n", [{Env0,Env1}]),
@@ -532,7 +532,7 @@ eval_apply({letrec,Body,Fbs,Env}, Es, _) ->
 eval_apply_expr(Func, Es, Env) ->
     case lfe_macro:expand_expr_all(Func, Env) of
         [lambda,Args|Body] -> apply_lambda(Args, Body, Es, Env);
-        ['match-lambda'|Cls] -> apply_match_lambda(Cls, Es, Env);
+        [match_lambda|Cls] -> apply_match_lambda(Cls, Es, Env);
         Fun when erlang:is_function(Fun) -> erlang:apply(Fun, Es)
     end.
 
@@ -756,16 +756,16 @@ eval_gexpr([binary|Bs], Env) -> eval_gbinary(Bs, Env);
 eval_gexpr([map|As], Env) ->
     Pairs = gmap_pairs(As, Env),
     maps:from_list(Pairs);
-%% eval_gexpr(['get-map',Map,K], Env) ->
+%% eval_gexpr([get_map,Map,K], Env) ->
 %%     Key = map_key(K),
 %%     maps:get(Key, eval_gexpr(Map, Env));
-eval_gexpr(['set-map',M|As], Env) ->
+eval_gexpr([set_map,M|As], Env) ->
     Map = eval_gexpr(M, Env),
     Pairs = gmap_pairs(As, Env),
     foldl(fun ({K,V}, M) -> maps:put(K, V, M) end, Map, Pairs);
-eval_gexpr(['upd-map'|As], Env) ->
-    eval_gexpr(['update-map'|As], Env);
-eval_gexpr(['update-map',M|As], Env) ->
+eval_gexpr([upd_map|As], Env) ->
+    eval_gexpr([update_map|As], Env);
+eval_gexpr([update_map,M|As], Env) ->
     Map = eval_gexpr(M, Env),
     Pairs = gmap_pairs(As, Env),
     foldl(fun ({K,V}, M) -> maps:update(K, V, M) end, Map, Pairs);

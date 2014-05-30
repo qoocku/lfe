@@ -132,14 +132,14 @@ make_exports(Exps, _) ->
 %%  Collect valid forms and module data. Returns forms and put module
 %%  data into state.
 
-collect_form(['define-module',Mod|Mdef], _, St) ->
+collect_form([define_module,Mod|Mdef], _, St) ->
     %% Everything into State
     {[],collect_mdef(Mdef, St#cg{mod=Mod})};
-collect_form(['extend-module'|Mdef], _, St) ->
+collect_form([extend_module|Mdef], _, St) ->
     {[],collect_mdef(Mdef, St)};
-collect_form(['define-function',Name,[lambda|_]=Lambda], L, St) ->
+collect_form([define_function,Name,[lambda|_]=Lambda], L, St) ->
     {[{Name,Lambda,L}],St};
-collect_form(['define-function',Name,['match-lambda'|_]=Match], L, St) ->
+collect_form([define_function,Name,[match_lambda|_]=Match], L, St) ->
     {[{Name,Match,L}],St}.
 
 %% collect_props(ModDef, State) -> State.
@@ -232,14 +232,14 @@ comp_expr([binary|Segs], Env, L, St) ->
     comp_binary(Segs, Env, L, St);        %And bitstring as well
 comp_expr([map|As], Env, L, St) ->
     comp_map(As, Env, L, St);
-comp_expr(['get-map',Map,K], Env, L, St) ->
+comp_expr([get_map,Map,K], Env, L, St) ->
     %% Sneaky, but no other real option for now.
     comp_expr([call,?Q(maps),?Q(get),K,Map], Env, L, St);
-comp_expr(['set-map',Map|As], Env, L, St) ->
+comp_expr([set_map,Map|As], Env, L, St) ->
     comp_set_map(Map, As, Env, L, St);
-comp_expr(['update-map',Map|As], Env, L, St) ->
+comp_expr([update_map,Map|As], Env, L, St) ->
     comp_update_map(Map, As, Env, L, St);
-comp_expr(['upd-map',Map|As], Env, L, St) ->
+comp_expr([upd_map,Map|As], Env, L, St) ->
     comp_update_map(Map, As, Env, L, St);
 comp_expr(['mref',K,Map], Env, L, St) ->
     %% Sneaky, but no other real option for now.
@@ -251,13 +251,13 @@ comp_expr(['mupd'|As], Env, L, St) ->
 %% Handle the Core closure special forms.
 comp_expr([lambda,Args|Body], Env, L, St) ->
     comp_lambda(Args, Body, Env, L, St);
-comp_expr(['match-lambda'|Cls], Env, L, St) ->
+comp_expr([match_lambda|Cls], Env, L, St) ->
     comp_match_lambda(Cls, Env, L, St);
 comp_expr(['let',Vbs|Body], Env, L, St) ->
     comp_let(Vbs, Body, Env, L, St);
-comp_expr(['let-function',Fbs|Body], Env, L, St) ->
+comp_expr([let_function,Fbs|Body], Env, L, St) ->
     comp_let_function(Fbs, Body, Env, L, St);
-comp_expr(['letrec-function',Fbs|Body], Env, L, St) ->
+comp_expr([letrec_function,Fbs|Body], Env, L, St) ->
     comp_letrec_function(Fbs, Body, Env, L, St);
 %% (let-syntax ...) should never be seen here!
 %% Handle the Core control special forms.
@@ -487,7 +487,7 @@ comp_letrec_function(Fbs, B, Env0, L, St0) ->
 %%  Return the arity of a function definition.
 
 func_arity([lambda,Args|_]) -> length(Args);
-func_arity(['match-lambda'|Cls]) ->
+func_arity([match_lambda|Cls]) ->
     match_lambda_arity(Cls).
 
 %% comp_func(FuncName, FuncDef, Env, L, State) -> {{Fname,Cfun},State}.
@@ -496,7 +496,7 @@ comp_func(Name, [lambda,Args|Body], Env, L, St0) ->
     Cf = c_fname(Name, length(Args)),
     {Cfun,St1} = comp_lambda(Args, Body, Env, L, St0),
     {{Cf,Cfun},St1};
-comp_func(Name, ['match-lambda'|Cls], Env, L, St0) ->
+comp_func(Name, [match_lambda|Cls], Env, L, St0) ->
     Cf = c_fname(Name, match_lambda_arity(Cls)),
     {Cfun,St1} = comp_match_lambda(Cls, Env, L, St0),
     {{Cf,Cfun},St1}.
@@ -705,7 +705,7 @@ comp_funcall([lambda,Las|Body]=F, As, Env, L, St) ->
        true ->                    %Catch arg mismatch at runtime
         comp_funcall_1(F, As, Env, L, St)
     end;
-comp_funcall(['match-lambda'|Cls]=F, As, Env, L, St0) ->
+comp_funcall([match_lambda|Cls]=F, As, Env, L, St0) ->
     case match_lambda_arity(Cls) == length(As) of
     true ->
         %% Expand comp_let as we need to special case body.
@@ -922,9 +922,9 @@ comp_gexpr([binary|Segs], Env, L, St) ->
     comp_binary(Segs, Env, L, St);        %And bitstring as well
 comp_gexpr([map|As], Env, L, St) ->
     comp_map(As, Env, L, St);
-comp_gexpr(['set-map',Map|As], Env, L, St) ->
+comp_gexpr([set_map,Map|As], Env, L, St) ->
     comp_set_map(Map, As, Env, L, St);
-comp_gexpr(['update-map',Map|As], Env, L, St) ->
+comp_gexpr([update_map,Map|As], Env, L, St) ->
     comp_update_map(Map, As, Env, L, St);
 comp_gexpr(['mset'|As], Env, L, St) ->
     comp_set_map(As, Env, L, St);

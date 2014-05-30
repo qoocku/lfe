@@ -44,7 +44,7 @@
 %%  Expand the forms to handle parameterised modules if necessary,
 %%  otherwise just pass forms straight through.
 
-module([{['define-module',[_|_]|_],_}|_]=Fs, Opts) ->
+module([{[define_module,[_|_]|_],_}|_]=Fs, Opts) ->
     expand_module(Fs, Opts);
 module(Fs, _) -> Fs.                %Normal module, do nothing
 
@@ -55,7 +55,7 @@ expand_module(Fs0, Opts) ->
     %% {ok,_} = lfe_lint:module(Fs1, Opts),
     Fs1.
 
-exp_form(['define-module',[Mod|Ps]|Mdef0], L, St0) ->
+exp_form([define_module,[Mod|Ps]|Mdef0], L, St0) ->
     %% Save the good bits and define new/N and instance/N.
     St1 = St0#param{mod=Mod,pars=Ps},
     {Mdef1,St2} = exp_mdef(Mdef0, St1),
@@ -67,18 +67,18 @@ exp_form(['define-module',[Mod|Ps]|Mdef0], L, St0) ->
               {[lambda,Ps,[instance,[call,?Q(Ex),?Q(new)|Ps]|Ps]],
                [lambda,[base|Ps],[tuple,?Q(Mod),base|Ps]]}
           end,
-    New = ['define-function',new,Nl],
-    Inst = ['define-function',instance,Il],
+    New = [define_function,new,Nl],
+    Inst = [define_function,instance,Il],
     %% Fix this match pattern depending on extends.
     St3 = case St2#param.extd of
           [] -> St2#param{this=['=',this,[tuple,'_'|Ps]]};
           _ -> St2#param{this=['=',this,[tuple,'_',base|Ps]]}
       end,
-    {[{['define-module',Mod|Mdef1],L},
+    {[{[define_module,Mod|Mdef1],L},
       {New,L},{Inst,L}],St3};
-exp_form(['define-function',F,Def0], L, St) ->
+exp_form([define_function,F,Def0], L, St) ->
     Def1 = exp_function(Def0, St),
-    {[{['define-function',F,Def1],L}],St};
+    {[{[define_function,F,Def1],L}],St};
 exp_form(F, L, St) ->
     {[{F,L}],St}.
 
@@ -124,7 +124,7 @@ collect_imps(Is, St) ->
                   S#param.env, Fs),
           S#param{env=Env}
       end, St, Is).
-    
+
 %% exp_function(Lambda, State) -> Lambda.
 %%  The resultant code matches the arguments in two steps: first the
 %%  THIS arguemnt is matched and then the expanded function body
@@ -134,16 +134,16 @@ collect_imps(Is, St) ->
 
 exp_function(Lambda, #param{this=Th,env=Env}) ->
     As = new_args(lambda_arity(Lambda)),
-    ['match-lambda',[As ++ [Th],[funcall,exp_expr(Lambda, Env)|As]]].
+    [match_lambda,[As ++ [Th],[funcall,exp_expr(Lambda, Env)|As]]].
 
-%% exp_function(['match-lambda'|Cls0], #param{this=Th,env=Env}) ->
+%% exp_function([match_lambda|Cls0], #param{this=Th,env=Env}) ->
 %%     Cls1 = map(fun ([As|Body]) ->
 %%                exp_clause([As ++ [Th]|Body], Env)
 %%            end, Cls0),
-%%     ['match-lambda'|Cls1];
+%%     [match_lambda|Cls1];
 %% exp_function([lambda,As|Body0], #param{this=Th,env=Env}) ->
 %%     Body1 = exp_list(Body0, Env),
-%%     ['match-lambda',[As ++ [Th]|Body1]].
+%%     [match_lambda,[As ++ [Th]|Body1]].
 
 new_args(N) when N > 0 ->
     [list_to_atom("{{-" ++ [$a+N-1] ++ "-}}")|new_args(N-1)];
@@ -165,14 +165,14 @@ exp_expr([binary|Bs], Env) ->
 %% Handle the Core closure special forms.
 exp_expr([lambda|Body], Env) ->
     [lambda|exp_lambda(Body, Env)];
-exp_expr(['match-lambda'|Cls], Env) ->
-    ['match-lambda'|exp_match_lambda(Cls, Env)];
+exp_expr([match_lambda|Cls], Env) ->
+    [match_lambda|exp_match_lambda(Cls, Env)];
 exp_expr(['let'|Body], Env) ->
     ['let'|exp_let(Body, Env)];
-exp_expr(['let-function'|Body], Env) ->
-    ['let-function'|exp_let_function(Body, Env)];
-exp_expr(['letrec-function'|Body], Env) ->
-    ['letrec-function'|exp_letrec_function(Body, Env)];
+exp_expr([let_function|Body], Env) ->
+    [let_function|exp_let_function(Body, Env)];
+exp_expr([letrec_function|Body], Env) ->
+    [letrec_function|exp_letrec_function(Body, Env)];
 %% Handle the control special forms.
 exp_expr(['progn'|Body], Env) ->
     [progn|exp_body(Body, Env)];
@@ -279,4 +279,4 @@ exp_call([M,F|As], Env) ->
     [exp_expr(M, Env),exp_expr(F, Env)|exp_list(As, Env)].
 
 lambda_arity([lambda,As|_]) -> length(As);
-lambda_arity(['match-lambda',[As|_]|_]) -> length(As).
+lambda_arity([match_lambda,[As|_]|_]) -> length(As).

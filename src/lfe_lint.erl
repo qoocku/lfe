@@ -111,7 +111,7 @@ pattern(P, Env) ->
 %% form(Form) -> {ok,[Warning]} | {error,[Error],[Warning]}.
 
 form(F) ->
-    module([{['define-module',dummy],1},
+    module([{[define_module,dummy],1},
         {F,2}]).
 
 %% module(Forms) -> {ok,[Warning]} | {error,[Error],[Warning]}.
@@ -143,7 +143,7 @@ return_status(St) ->
 %%  Collect valid forms and module data. Returns forms and put module
 %%  data into state. Flag unknown forms and define-module not first.
 
-collect_form(['define-module',Mod|Mdef], L, St0) ->
+collect_form([define_module,Mod|Mdef], L, St0) ->
     %% Check normal module or parameterised module.
     case is_symb_list(Mod) of       %Parameterised module
     true ->
@@ -159,18 +159,18 @@ collect_form(['define-module',Mod|Mdef], L, St0) ->
 collect_form(_, L, #lint{module=[]}=St) ->
     %% Set module name so this only triggers once.
     {[],bad_mdef_error(L, name, St#lint{module='-no-module-'})};
-collect_form(['extend-module'|Mdef], L, St) ->
+collect_form([extend_module|Mdef], L, St) ->
     {[],check_mdef(Mdef, L, St)};
-collect_form(['define-function',Func,Body], L, St) ->
+collect_form([define_function,Func,Body], L, St) ->
     case Body of
     [lambda|_] when is_atom(Func) ->
         {[{Func,Body,L}],St};
-    ['match-lambda'|_] when is_atom(Func) ->
+    [match_lambda|_] when is_atom(Func) ->
         {[{Func,Body,L}],St};
-    _ -> {[],bad_form_error(L, 'define-function', St)}
+    _ -> {[],bad_form_error(L, define_function, St)}
     end;
 collect_form(F, L, St) ->
-    io:format("*** UKNOWN Form: ~p~n", [F]),
+    io:format("*** UNKNOWN Form: ~p~n", [F]),
     {[],add_error(L, unknown_form, St)}.
 
 check_mdef([[export,all]|Mdef], L, St) ->    %Pass 'all' along
@@ -322,13 +322,13 @@ check_expr([list|As], Env, L, St) -> check_args(As, Env, L, St);
 check_expr([tuple|As], Env, L, St) -> check_args(As, Env, L, St);
 check_expr([binary|Segs], Env, L, St) -> expr_bitsegs(Segs, Env, L, St);
 check_expr([map|As], Env, L, St) -> expr_map(As, Env, L, St);
-check_expr(['get-map',Map,K], Env, L, St) ->
+check_expr([get_map,Map,K], Env, L, St) ->
     expr_get_map(Map, K, Env, L, St);
-check_expr(['set-map',Map|As], Env, L, St) ->
+check_expr([set_map,Map|As], Env, L, St) ->
     expr_set_map(Map, As, Env, L, St);
-check_expr(['update-map',Map|As], Env, L, St) ->
+check_expr([update_map,Map|As], Env, L, St) ->
     expr_update_map(Map, As, Env, L, St);
-check_expr(['upd-map',Map|As], Env, L, St) ->
+check_expr([upd_map,Map|As], Env, L, St) ->
     expr_update_map(Map, As, Env, L, St);
 check_expr(['mref',K,Map], Env, L, St) ->
     expr_get_map(Map, K, Env, L, St);
@@ -339,17 +339,17 @@ check_expr(['mupd'|As], Env, L, St) ->
 %% Check the Core closure special forms.
 check_expr(['lambda'|Lambda], Env, L, St) ->
     check_lambda(Lambda, Env, L, St);
-check_expr(['match-lambda'|Match], Env, L, St) ->
+check_expr([match_lambda|Match], Env, L, St) ->
     check_match_lambda(Match, Env, L, St);
 check_expr(['let'|Let], Env, L, St) ->
     check_let(Let, Env, L, St);
-check_expr(['let-function'|Flet], Env, L, St) ->
+check_expr([let_function|Flet], Env, L, St) ->
     check_let_function(Flet, Env, L, St);
-check_expr(['letrec-function'|Fletrec], Env, L, St) ->
+check_expr([letrec_function|Fletrec], Env, L, St) ->
     check_letrec_function(Fletrec, Env, L, St);
-check_expr(['let-macro'|_], _, L, St) ->
+check_expr([let_macro|_], _, L, St) ->
     %% This should never occur! Removed by macro expander.
-    bad_form_error(L, 'let-macro', St);
+    bad_form_error(L, let_macro, St);
 %% Check the Core control special forms.
 check_expr(['progn'|B], Env, L, St) ->
     check_body(B, Env, L, St);
@@ -571,7 +571,7 @@ check_match_lambda([[Pat|_]|_]=Cls, Env, L, St0) ->
       end,
     check_ml_clauses(Cls, Env, L, St1);
 check_match_lambda(_, _, L, St) ->        %Totally wrong
-    bad_form_error(L, 'match-lambda', St).
+    bad_form_error(L, match_lambda, St).
 
 check_ml_arity([[Pat|_]|Cls], Ar, L, St) ->
     case is_proper_list(Pat) andalso length(Pat) == Ar of
@@ -584,12 +584,12 @@ check_ml_clauses(Cls, Env, L, St) ->
     %% Sneaky! m-l args a list of patterns so wrap with list and pass
     %% in as one pattern. Have already checked a proper list.
     foreach_form(fun ([As|B], S) -> check_clause([[list|As]|B], Env, L, S) end,
-         'match-lambda', L, St, Cls).
+         match_lambda, L, St, Cls).
 
 %% check_ml_clauses(Cls, Env, L, St) ->
 %%     %% Sneaky! m-l args list of patterns so just pass in as one pattern.
 %%     foreach_form(fun (Cl, S) -> check_clause(Cl, Env, L, S) end,
-%%           'match-lambda', L, St, Cls).
+%%           match_lambda, L, St, Cls).
 
 %% check_let(LetBody, Env, Line, State) -> {Env,State}.
 %%  Check let variable bindings and then body. Must be careful to use
@@ -625,7 +625,7 @@ check_let_vb(Vb, Env, L, St0) ->
 
 check_let_function([Fbs0|Body], Env0, L, St0) ->
     %% Collect correct function definitions.
-    {Fbs1,St1} = collect_let_funcs(Fbs0, 'let-function', L, St0),
+    {Fbs1,St1} = collect_let_funcs(Fbs0, let_function, L, St0),
     {_,Env1,St2} = check_let_bindings(Fbs1, Env0, St1),
     check_body(Body, Env1, L, St2).
 
@@ -634,7 +634,7 @@ check_let_function([Fbs0|Body], Env0, L, St0) ->
 
 check_letrec_function([Fbs0|Body], Env0, L, St0) ->
     %% Collect correct function definitions.
-    {Fbs1,St1} = collect_let_funcs(Fbs0, 'letrec-function', L, St0),
+    {Fbs1,St1} = collect_let_funcs(Fbs0, letrec_function, L, St0),
     {_,Env1,St2} = check_letrec_bindings(Fbs1, Env0, St1),
     check_body(Body, Env1, L, St2).
 
@@ -645,7 +645,7 @@ check_letrec_function([Fbs0|Body], Env0, L, St0) ->
 collect_let_funcs(Fbs0, Type, L, St0) ->
     Check = fun ([V,['lambda'|_]=Lambda], Fbs, St) when is_atom(V) ->
             {[{V,Lambda,L}|Fbs],St};
-        ([V,['match-lambda'|_]=Match], Fbs, St) when is_atom(V) ->
+        ([V,[match_lambda|_]=Match], Fbs, St) when is_atom(V) ->
             {[{V,Match,L}|Fbs],St};
         (_, Fbs, St) -> {Fbs,bad_form_error(L, Type, St)}
         end,
@@ -661,7 +661,7 @@ check_let_bindings(Fbs, Env0, St0) ->
     %% Now check function definitions.
     St2 = foldl(fun ({_,[lambda|Lambda],L}, St) ->
             check_lambda(Lambda, Env0, L, St);
-            ({_,['match-lambda'|Match],L}, St) ->
+            ({_,[match_lambda|Match],L}, St) ->
             check_match_lambda(Match, Env0, L, St)
         end, St1, Fbs),
     %% Add to environment
@@ -680,7 +680,7 @@ check_letrec_bindings(Fbs, Env0, St0) ->
     %% Now check function definitions.
     St2 = foldl(fun ({_,[lambda|Lambda],L}, St) ->
             check_lambda(Lambda, Env1, L, St);
-            ({_,['match-lambda'|Match],L}, St) ->
+            ({_,[match_lambda|Match],L}, St) ->
             check_match_lambda(Match, Env1, L, St)
         end, St1, Fbs),
     {Fs,Env1,St2}.
@@ -701,10 +701,10 @@ check_fbindings(Fbs0, St0) ->
             true -> AddFb({V,length(Args)}, Fs, L, St);
             false -> {Fs,bad_form_error(L, lambda, St)}
             end;
-        ({V,['match-lambda',[Pats|_]|_],L}, {Fs,St}) ->
+        ({V,[match_lambda,[Pats|_]|_],L}, {Fs,St}) ->
             case is_proper_list(Pats) of
             true -> AddFb({V,length(Pats)}, Fs, L, St);
-            false -> {Fs,bad_form_error(L, 'match-lambda', St)}
+            false -> {Fs,bad_form_error(L, match_lambda, St)}
             end;
         (_, Acc) -> Acc            %Error here flagged later
         end,
@@ -812,13 +812,13 @@ check_gexpr([list|As], Env, L, St) -> check_gargs(As, Env, L, St);
 check_gexpr([tuple|As], Env, L, St) -> check_gargs(As, Env, L, St);
 check_gexpr([binary|Segs], Env, L, St) -> gexpr_bitsegs(Segs, Env, L, St);
 check_gexpr([map|As], Env, L, St) -> gexpr_map(As, Env, L, St);
-%% check_gexpr(['get-map',Map,K], Env, L, St) ->
+%% check_gexpr([get_map,Map,K], Env, L, St) ->
 %%     gexpr_set_map(Map, K, Env, L, St);
-check_gexpr(['set-map',Map|As], Env, L, St) ->
+check_gexpr([set_map,Map|As], Env, L, St) ->
     gexpr_set_map(Map, As, Env, L, St);
-check_gexpr(['update-map',Map|As], Env, L, St) ->
+check_gexpr([update_map,Map|As], Env, L, St) ->
     gexpr_update_map(Map, As, Env, L, St);
-check_gexpr(['upd-map',Map|As], Env, L, St) ->
+check_gexpr([upd_map,Map|As], Env, L, St) ->
     gexpr_update_map(Map, As, Env, L, St);
 %% check_gexpr(['mref',K,Map], Env, L, St) ->
 %%     gexpr_get_map(Map, K, Env, L, St);

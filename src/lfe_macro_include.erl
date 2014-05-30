@@ -150,7 +150,7 @@ read_hrl_file(Name, St) ->
 parse_hrl_file(Fs, Ms, St0) ->
     {As,Lfs,St1} = trans_forms(Fs, St0),
     {Lms,St2} = trans_macros(Ms, St1),
-    {ok,[['extend-module'|As]] ++ Lfs ++ Lms,St2}.
+    {ok,[[extend_module|As]] ++ Lfs ++ Lms,St2}.
 
 %% trans_forms(Forms, State) -> {Attributes,LForms,State}.
 %%  Translate the record and function defintions and attributes in the
@@ -211,7 +211,7 @@ record_field({record_field,_,F,Def}) -> %Field name and default value
 
 trans_function(Name, _, Cls) ->
     %% Make it a fun and then drop the match-lambda.
-    ['match-lambda'|Lcs] = lfe_trans:from_expr({'fun',0,{clauses,Cls}}),
+    [match_lambda|Lcs] = lfe_trans:from_expr({'fun',0,{clauses,Cls}}),
     [defun,Name|Lcs].
 
 %% trans_macros(MacroDefs, State) -> {LMacroDefs,State}.
