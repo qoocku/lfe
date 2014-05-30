@@ -20,7 +20,7 @@
 -define(Q(E), [quote,E]).
 -define(BQ(E), [backquote,E]).
 -define(UQ(E), [unquote,E]).
--define(UQ_S(E), ['unquote-splicing',E]).
+-define(UQ_S(E), [unquote_splicing, E]).
 
 %% Macro expander state.
 -record(mac, {expand=true,          %Expand everything

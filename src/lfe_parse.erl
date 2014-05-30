@@ -107,7 +107,7 @@ reduce(5, [S,_|Vs]) -> [[quote,S]|Vs];          %s->' s
 reduce(6, [S,_|Vs]) -> [[backquote,S]|Vs];      %s->` s
 reduce(7, [S,_|Vs]) -> [[unquote,S]|Vs];        %s->, s
 reduce(8, [S,_|Vs]) ->                          %s->,@ s
-    [['unquote-splicing',S]|Vs];
+    [[unquote_splicing,S]|Vs];
 reduce(9, [_,L,_|Vs]) -> [L|Vs];                %s->( s )
 reduce(10, [_,L,_|Vs]) -> [L|Vs];               %s->[ s ]
 reduce(11, [_,L,_|Vs]) ->                       %s->#( p )
