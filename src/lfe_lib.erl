@@ -99,7 +99,7 @@ is_core_form('let') -> true;
 is_core_form(let_function) -> true;
 is_core_form(letrec_function) -> true;
 is_core_form(let_macro) -> true;
-is_core_form('eval-when-compile') -> true;
+is_core_form('eval_when_compile') -> true;
 is_core_form(define_function) -> true;
 is_core_form(define_macro) -> true;
 %% Core control special forms.

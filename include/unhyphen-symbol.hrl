@@ -8,6 +8,7 @@
 -define (unhyphen_symbol(S),
 		 case S of
 		   "-" -> "-" ;
+       "<-" -> "<-";
 		    _ -> [case C of $- -> $_ ; C -> C end || C <- S]
 		 end).
 

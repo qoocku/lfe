@@ -36,7 +36,7 @@ format_error(_) -> "record error".
 
 defrecord([Name|Fdefs], Env, St0) ->
     {Funs,Macs, _,St1} = defrecord(Name, Fdefs, Env, St0),
-    {yes,[progn,['eval-when-compile'|Funs]|Macs],St1}.
+    {yes,[progn,['eval_when_compile'|Funs]|Macs],St1}.
 
 defrecord(Name, Fdefs, Env, St0) ->
     %% Get field names, default values and indices.

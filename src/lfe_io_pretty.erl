@@ -46,7 +46,7 @@ print1(Numb, _, _, _) when is_float(Numb) -> io_lib_format:fwrite_g(Numb);
 print1([quote,E], D, I, L) -> ["'",print1(E, D, I+1, L)];
 print1([backquote,E], D, I, L) -> ["`",print1(E, D, I+1, L)];
 print1([unquote,E], D, I, L) -> [",",print1(E, D, I+1, L)];
-print1(['unquote-splicing',E], D, I, L) -> [",@",print1(E, D, I+2, L)];
+print1(['unquote_splicing',E], D, I, L) -> [",@",print1(E, D, I+2, L)];
 print1([Car|_]=List, D, I, L) ->
     %% Handle printable lists specially.
     case io_lib:printable_list(List) of
@@ -182,13 +182,13 @@ blanks(N, Tail) -> string:chars($\s, N, Tail).
 
 %% Old style forms.
 indent_type('define') -> 1;
-indent_type('define-module') -> 1;
-indent_type('extend-module') -> 0;
-indent_type('define-syntax') -> 1;
-indent_type('define-record') -> 1;
+indent_type('define_module') -> 1;
+indent_type('extend_module') -> 0;
+indent_type('define_syntax') -> 1;
+indent_type('define_record') -> 1;
 indent_type('begin') -> 0;
-indent_type('let-syntax') -> 1;
-indent_type('syntax-rules') -> 0;
+indent_type('let_syntax') -> 1;
+indent_type('syntax_rules') -> 0;
 indent_type('macro') -> 0;
 %% New style forms.
 indent_type('defmodule') -> 1;
@@ -199,11 +199,11 @@ indent_type('defrecord') -> 1;
 %% Core forms.
 indent_type('progn') -> 0;
 indent_type('lambda') -> 1;
-indent_type('match-lambda') -> 0;
+indent_type('match_lambda') -> 0;
 indent_type('let') -> 1;
-indent_type('let-function') -> 1;
-indent_type('letrec-function') -> 1;
-indent_type('let-macro') -> 1;
+indent_type('let_function') -> 1;
+indent_type('letrec_function') -> 1;
+indent_type('let_macro') -> 1;
 indent_type('if') -> 1;
 indent_type('case') -> 1;
 indent_type('receive') -> 0;
@@ -211,9 +211,9 @@ indent_type('catch') -> 0;
 indent_type('try') -> 1;
 indent_type('funcall') -> 1;
 indent_type('call') -> 2;
-indent_type('define-function') -> 1;
-indent_type('define-macro') -> 1;
-indent_type('eval-when-compile') -> 0;
+indent_type('define_function') -> 1;
+indent_type('define_macro') -> 1;
+indent_type('eval_when_compile') -> 0;
 %% Core macros.
 indent_type(':') -> 2;
 indent_type('cond') -> 999;            %All following forms
@@ -226,7 +226,7 @@ indent_type(syntaxlet) -> 1;
 indent_type('do') -> 2;
 indent_type('lc') -> 1;                %List comprehensions
 indent_type('bc') -> 1;                %Binary comprehensions
-indent_type('match-spec') -> 0;
+indent_type('match_spec') -> 0;
 indent_type(_) -> none.
 
 %% print1_map(Map, Depth, Indentation, LineLength).

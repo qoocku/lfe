@@ -125,7 +125,7 @@ pass([{['progn'|Pfs0],L}|Fs0], Env0, St0) ->
     {Pfs1,Env1,St1} = pass_progn(Pfs0, Env0, St0#mac{line=L}),
     {Fs1,Env2,St2} = pass(Fs0, Env1, St1),
     {[{['progn'|Pfs1],L}|Fs1],Env2,St2};
-pass([{['eval-when-compile'|Ewcs0],L}|Fs0], Env0, St0) ->
+pass([{['eval_when_compile'|Ewcs0],L}|Fs0], Env0, St0) ->
     {Ecws1,Env1,St1} = pass_ewc(Ewcs0, Env0, St0#mac{line=L}),
     {Fs1,Env2,St2} = pass(Fs0, Env1, St1),
     {[{['progn'|Ecws1],L}|Fs1],Env2,St2};
@@ -158,7 +158,7 @@ pass_progn([['progn'|Pfs0]|Fs0], Env0, St0) ->
     {Pfs1,Env1,St1} = pass_progn(Pfs0, Env0, St0),
     {Fs1,Env2,St2} = pass_progn(Fs0, Env1, St1),
     {[['progn'|Pfs1]|Fs1],Env2,St2};
-pass_progn([['eval-when-compile'|Ewcs0]|Fs0], Env0, St0) ->
+pass_progn([['eval_when_compile'|Ewcs0]|Fs0], Env0, St0) ->
     {Ecws1,Env1,St1} = pass_ewc(Ewcs0, Env0, St0),
     {Fs1,Env2,St2} = pass_progn(Fs0, Env1, St1),
     {[['progn'|Ecws1]|Fs1],Env2,St2};
@@ -198,7 +198,7 @@ pass_ewc([['progn'|Pfs0]|Fs0], Fbs0, Env0, St0) ->
     {Pfs1,Fbs1,Env1,St1} = pass_ewc(Pfs0, Fbs0, Env0, St0),
     {Fs1,Fbs2,Env2,St2} = pass_ewc(Fs0, Fbs1, Env1, St1),
     {[['progn'|Pfs1]|Fs1],Fbs2,Env2,St2};
-pass_ewc([['eval-when-compile'|Ewcs0]|Fs0], Fbs0, Env0, St0) ->
+pass_ewc([['eval_when_compile'|Ewcs0]|Fs0], Fbs0, Env0, St0) ->
     {Ecws1,Fbs1,Env1,St1} = pass_ewc(Ewcs0, Fbs0, Env0, St0),
     {Fs1,Fbs2,Env2,St2} = pass_ewc(Fs0, Fbs1, Env1, St1),
     {[['progn'|Ecws1]|Fs1],Fbs2,Env2,St2};
