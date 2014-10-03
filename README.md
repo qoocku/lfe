@@ -49,7 +49,8 @@ Oh, yeah. That's better ;)
 
 ## Installation
 
-LFE installation isn't recommended. Instead, one should:
+LFE can be installed in different ways depending on how it is intended
+to be used:
 
 * use [lfetool](https://github.com/qoocku/lfetool) from `hyphenized` branch to create projects (which will
   automatically have LFE as a dependency when it creates skeleton libraries,
@@ -57,16 +58,16 @@ LFE installation isn't recommended. Instead, one should:
 * use LFE directly in a working dir, e.g.:
 
 ```shell
-
     $ git clone https://github.com/qoocku/lfe.git -b unhyphenized
     $ cd lfe
     $ make compile
 ```
 
-If you really do want to install LFE system-wide, you can do so like this:
+The second alternative compiles all the files. After this has been
+done programs for starting the REPL and compiling LFE files can be
+installed with:
 
 ```shell
-
     $ git clone https://github.com/qoocku/lfe.git -b unhyphenized
     $ cd lfe
     $ export ERL_LIBS=`erl -noshell -eval \
@@ -75,6 +76,17 @@ If you really do want to install LFE system-wide, you can do so like this:
     $ make install
 ```
 
+By default this will create the programs ``lfe``, ``lfec`` and
+``lfescript`` in the same directory as the ``erl`` program. This can
+changed by defining the make variable ``DESTBINDIR`` to point to the
+desired directory. So:
+
+```shell
+    $ make install DESTBINDIR=/Users/rv/bin
+```
+
+will put the programs in ``/Users/rv/bin``.
+
 ## REPL
 
 If you have used ``lfetool`` to set up your project, you can simply do this to
@@ -82,9 +94,9 @@ start a REPL:
 
 ```shell
     $ make shell
-    Erlang R16B03-1 (erts-5.10.4) [source] [64-bit] [smp:8:8] ...
+    Erlang 17 (erts-6.0) [source] [64-bit] [smp:8:8] ...
 
-    LFE Shell V5.10.4 (abort with ^G)
+    LFE Shell 6.0 (abort with ^G)
     >
 ```
 
@@ -96,11 +108,17 @@ If you're running LFE from a git clone working dir, you can start the REPL
 like so:
 
 ```shell
-    $ ./bin/lfe -pa ./ebin
-    Erlang R16B03-1 (erts-5.10.4) [source] [64-bit] [smp:8:8] ...
+    $ lfe
+    Erlang 17 (erts-6.0) [source] [64-bit] [smp:8:8] ...
 
-    LFE Shell V5.10.4 (abort with ^G)
+    LFE Shell V6.0 (abort with ^G)
     >
+```
+
+and run an LFE shell script in the same style as shell scripts with:
+
+```shell
+    $ lfe script-name script-arg-1 ...
 ```
 
 ## Usage

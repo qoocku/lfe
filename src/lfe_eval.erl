@@ -38,6 +38,13 @@
 -compile({no_auto_import,[apply/3]}).           %For our apply/3 function
 -deprecated([eval/1,eval/2,eval_list/2]).
 
+%% Define IS_MAP/1 macro for is_map/1 bif.
+-ifdef(HAS_MAPS).
+-define(IS_MAP(T), is_map(T)).
+-else.
+-define(IS_MAP(T), false).
+-endif.
+
 %% -compile([export_all]).
 
 %% eval(Sexpr) -> Value.
@@ -112,28 +119,23 @@ eval_expr([binary|Bs], Env) -> eval_binary(Bs, Env);
 eval_expr([map|As], Env) ->
     Pairs = map_pairs(As, Env),
     maps:from_list(Pairs);
-eval_expr([get_map,Map,K], Env) ->
+eval_expr(['mref',Map,K], Env) ->
     Key = map_key(K),
     maps:get(Key, eval_expr(Map, Env));
-eval_expr([set_map,M|As], Env) ->
+eval_expr(['mset',M|As], Env) ->
     Map = eval_expr(M, Env),
     Pairs = map_pairs(As, Env),
     foldl(fun ({K,V}, M) -> maps:put(K, V, M) end, Map, Pairs);
-eval_expr([upd_map|As], Env) ->
-    eval_expr([update_map|As], Env);
-eval_expr([update_map,M|As], Env) ->
+eval_expr(['mupd',M|As], Env) ->
     Map = eval_expr(M, Env),
     Pairs = map_pairs(As, Env),
     foldl(fun ({K,V}, M) -> maps:update(K, V, M) end, Map, Pairs);
-eval_expr(['mref',K,Map], Env) ->
-    Key = map_key(K),
-    maps:get(Key, eval_expr(Map, Env));
-eval_expr(['mset'|As], Env) ->
-    {Map,Pairs} = map_pairs_1(As, Env),
-    foldl(fun ({K,V}, M) -> maps:put(K, V, M) end, Map, Pairs);
-eval_expr(['mupd'|As], Env) ->
-    {Map,Pairs} = map_pairs_1(As, Env),
-    foldl(fun ({K,V}, M) -> maps:update(K, V, M) end, Map, Pairs);
+eval_expr(['map_get',Map,K], Env) ->
+    eval_expr([mref,Map,K], Env);
+eval_expr(['map_set',M|As], Env) ->
+    eval_expr([mset,M|As], Env);
+eval_expr(['map_update',M|As], Env) ->
+    eval_expr([mupd,M|As], Env);
 %% Handle the Core closure special forms.
 eval_expr([lambda|Body], Env) ->
     eval_lambda(Body, Env);
@@ -309,13 +311,6 @@ map_pairs([K,V|As], Env) ->
     [P|map_pairs(As, Env)];
 map_pairs([], _) -> [];
 map_pairs(_, _) -> erlang:error(badarg).
-
-map_pairs_1([K,V|As], Env) ->
-    P = {map_key(K),eval_expr(V, Env)},
-    {Map,Pairs} = map_pairs_1(As, Env),
-    {Map,[P|Pairs]};
-map_pairs_1([M], Env) -> {eval_expr(M, Env),[]};
-map_pairs_1(_, _) -> erlang:error(badarg).
 
 %% map_key(Key) -> Value.
 %%  Map keys can only be literals.
@@ -512,9 +507,9 @@ add_dynamic_func(Name, Ar, Def, Env) ->
 %%  expanded completely in the function definition before it is
 %%  applied.
 
-eval_apply({dynamic_expr,Func}, Es, Env0) ->
-    Env1 = lfe_env:clr_vars(Env0),              %Clear all variable bindings
-    eval_apply_expr(Func, Es, Env1);
+eval_apply({dynamic_expr,Func}, Es, Env) ->
+    %% Don't clear variable bindings, even if this gives dynamic scoping.
+    eval_apply_expr(Func, Es, Env);
 eval_apply({lexical_expr,Func,Env}, Es, _) ->
     eval_apply_expr(Func, Es, Env);
 eval_apply({letrec,Body,Fbs,Env}, Es, _) ->
@@ -563,8 +558,8 @@ eval_case_clauses(V, Cls, Env) ->
 
 match_clause(V, [[Pat|B0]|Cls], Env) ->
     case match_when(Pat, V, B0, Env) of
-    {yes,_,_}=Yes -> Yes;
-    no -> match_clause(V, Cls, Env)
+        {yes,_,_}=Yes -> Yes;
+        no -> match_clause(V, Cls, Env)
     end;
 match_clause(_, [], _) -> no.
 
@@ -574,8 +569,8 @@ match_clause(_, [], _) -> no.
 eval_receive(Body, Env) ->
     {Cls,Te,Tb} = split_receive(Body, []),
     case eval_expr(Te, Env) of            %Check timeout
-    infinity -> receive_clauses(Cls, Env);
-    T -> receive_clauses(T, Tb, Cls, Env)
+        infinity -> receive_clauses(Cls, Env);
+        T -> receive_clauses(T, Tb, Cls, Env)
     end.
 
 split_receive([['after',T|B]], Rcls) ->
@@ -593,13 +588,13 @@ receive_clauses(Cls, Env) -> receive_clauses(Cls, Env, []).
 
 receive_clauses(Cls, Env, Ms) ->
     receive
-    Msg ->
-        case match_clause(Msg, Cls, Env) of
-        {yes,B,Vbs} ->
-            merge_queue(Ms),
-            eval_body(B, add_vbindings(Vbs, Env));
-        no -> receive_clauses(Cls, Env, [Msg|Ms])
-        end
+        Msg ->
+            case match_clause(Msg, Cls, Env) of
+                {yes,B,Vbs} ->
+                    merge_queue(Ms),
+                    eval_body(B, add_vbindings(Vbs, Env));
+                no -> receive_clauses(Cls, Env, [Msg|Ms])
+            end
     end.
 
 %% receive_clauses(Timeout, TimeoutBody, Clauses, Env) -> Value.
@@ -613,23 +608,23 @@ receive_clauses(T, Tb, Cls, Env) ->
 
 receive_clauses(T, Tb, Cls, Env, Ms) ->
     receive
-    Msg ->
-        case match_clause(Msg, Cls, Env) of
-        {yes,B,Vbs} ->
-            merge_queue(Ms),
-            eval_body(B, add_vbindings(Vbs, Env));
-        no ->
-            %% Check how much time left and recurse correctly.
-            {_,T1} = statistics(runtime),
-            if  T-T1 < 0 ->
-                receive_clauses(0, Tb, Cls, Env, [Msg|Ms]);
-            true ->
-                receive_clauses(T-T1, Tb, Cls, Env, [Msg|Ms])
+        Msg ->
+            case match_clause(Msg, Cls, Env) of
+                {yes,B,Vbs} ->
+                    merge_queue(Ms),
+                    eval_body(B, add_vbindings(Vbs, Env));
+                no ->
+                    %% Check how much time left and recurse correctly.
+                    {_,T1} = statistics(runtime),
+                    if  T-T1 < 0 ->
+                            receive_clauses(0, Tb, Cls, Env, [Msg|Ms]);
+                        true ->
+                            receive_clauses(T-T1, Tb, Cls, Env, [Msg|Ms])
+                    end
             end
-        end
     after T ->
-        merge_queue(Ms),
-        eval_body(Tb, Env)
+            merge_queue(Ms),
+            eval_body(Tb, Env)
     end.
 
 merge_queue(Ms) ->
@@ -637,9 +632,9 @@ merge_queue(Ms) ->
 
 recv_all(Xs) ->
     receive
-    X -> recv_all([X|Xs])
+        X -> recv_all([X|Xs])
     after 0 ->
-        reverse(Xs)
+            reverse(Xs)
     end.
 
 send_all([X|Xs], Self) ->
@@ -756,28 +751,23 @@ eval_gexpr([binary|Bs], Env) -> eval_gbinary(Bs, Env);
 eval_gexpr([map|As], Env) ->
     Pairs = gmap_pairs(As, Env),
     maps:from_list(Pairs);
-%% eval_gexpr([get_map,Map,K], Env) ->
-%%     Key = map_key(K),
-%%     maps:get(Key, eval_gexpr(Map, Env));
-eval_gexpr([set_map,M|As], Env) ->
-    Map = eval_gexpr(M, Env),
-    Pairs = gmap_pairs(As, Env),
-    foldl(fun ({K,V}, M) -> maps:put(K, V, M) end, Map, Pairs);
-eval_gexpr([upd_map|As], Env) ->
-    eval_gexpr([update_map|As], Env);
-eval_gexpr([update_map,M|As], Env) ->
-    Map = eval_gexpr(M, Env),
-    Pairs = gmap_pairs(As, Env),
-    foldl(fun ({K,V}, M) -> maps:update(K, V, M) end, Map, Pairs);
 %% eval_gexpr(['mref',K,Map], Env) ->
 %%     Key = map_key(K),
 %%     maps:get(Key, eval_gexpr(Map, Env));
-eval_gexpr(['mset'|As], Env) ->
-    {Map,Pairs} = gmap_pairs_1(As, Env),
+eval_gexpr(['mset',M|As], Env) ->
+    Map = eval_gexpr(M, Env),
+    Pairs = gmap_pairs(As, Env),
     foldl(fun ({K,V}, M) -> maps:put(K, V, M) end, Map, Pairs);
-eval_gexpr(['mupd'|As], Env) ->
-    {Map,Pairs} = gmap_pairs_1(As, Env),
+eval_gexpr(['mupd',M|As], Env) ->
+    Map = eval_gexpr(M, Env),
+    Pairs = gmap_pairs(As, Env),
     foldl(fun ({K,V}, M) -> maps:update(K, V, M) end, Map, Pairs);
+%% eval_gexpr(['map-get',Map,K], Env) ->
+%%     eval_gexpr(['mref',Map,K], Env) ->
+eval_gexpr(['map_set',M|As], Env) ->
+    eval_gexpr([mset,M|As], Env);
+eval_gexpr(['map_update',M|As], Env) ->
+    eval_gexpr([mupd,M|As], Env);
 %% Handle the Core closure special forms.
 %% Handle the control special forms.
 eval_gexpr(['progn'|Body], Env) -> eval_gbody(Body, Env);
@@ -822,13 +812,6 @@ gmap_pairs([K,V|As], Env) ->
     [P|gmap_pairs(As, Env)];
 gmap_pairs([], _) -> [];
 gmap_pairs(_, _) -> erlang:error(badarg).
-
-gmap_pairs_1([K,V|As], Env) ->
-    P = {map_key(K),eval_gexpr(V, Env)},
-    {Map,Pairs} = gmap_pairs_1(As, Env),
-    {Map,[P|Pairs]};
-gmap_pairs_1([M], Env) -> {eval_gexpr(M, Env),[]};
-gmap_pairs_1(_, _) -> erlang:error(badarg).
 
 %% eval_gif(IfBody, Env) -> Val.
 
@@ -877,7 +860,7 @@ match([binary|Ss], Val, Pbs, Env) ->
         false -> no
     end;
 match([map|Ps], Val, Pbs, Env) ->
-    case is_map(Val) of
+    case ?IS_MAP(Val) of
         true -> match_map(Ps, Val, Pbs, Env);
         false -> no
     end;

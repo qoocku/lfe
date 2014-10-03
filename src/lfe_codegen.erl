@@ -34,6 +34,13 @@
 
 -include_lib("compiler/src/core_parse.hrl").
 
+%% Define IS_MAP/1 macro for is_map/1 bif.
+-ifdef(HAS_MAPS).
+-define(IS_MAP(T), is_map(T)).
+-else.
+-define(IS_MAP(T), false).
+-endif.
+
 -define(Q(E), [quote,E]).     %We do a lot of quoting!
 
 -record(cg, {opts=[],         %Options
@@ -232,22 +239,19 @@ comp_expr([binary|Segs], Env, L, St) ->
     comp_binary(Segs, Env, L, St);        %And bitstring as well
 comp_expr([map|As], Env, L, St) ->
     comp_map(As, Env, L, St);
-comp_expr([get_map,Map,K], Env, L, St) ->
+comp_expr(['mref',Map,K], Env, L, St) ->
     %% Sneaky, but no other real option for now.
     comp_expr([call,?Q(maps),?Q(get),K,Map], Env, L, St);
-comp_expr([set_map,Map|As], Env, L, St) ->
+comp_expr(['mset',Map|As], Env, L, St) ->
     comp_set_map(Map, As, Env, L, St);
-comp_expr([update_map,Map|As], Env, L, St) ->
+comp_expr(['mupd',Map|As], Env, L, St) ->
     comp_update_map(Map, As, Env, L, St);
-comp_expr([upd_map,Map|As], Env, L, St) ->
-    comp_update_map(Map, As, Env, L, St);
-comp_expr(['mref',K,Map], Env, L, St) ->
-    %% Sneaky, but no other real option for now.
-    comp_expr([call,?Q(maps),?Q(get),K,Map], Env, L, St);
-comp_expr(['mset'|As], Env, L, St) ->
-    comp_set_map(As, Env, L, St);
-comp_expr(['mupd'|As], Env, L, St) ->
-    comp_update_map(As, Env, L, St);
+comp_expr(['map_get',Map,K], Env, L, St) ->
+    comp_expr(['mref',Map,K], Env, L, St);
+comp_expr(['map_set',Map|As], Env, L, St) ->
+    comp_expr(['mset',Map|As], Env, L, St);
+comp_expr(['map_update',Map|As], Env, L, St) ->
+    comp_expr(['mupd',Map|As], Env, L, St);
 %% Handle the Core closure special forms.
 comp_expr([lambda,Args|Body], Env, L, St) ->
     comp_lambda(Args, Body, Env, L, St);
@@ -807,6 +811,7 @@ comp_bitseg({Val,Sz,{Ty,Un,Si,En}}, Env, L, St0) ->
 %% comp_set_map(Map, Args, Line, State) -> {Core,State}.
 %% comp_update_map(Map, Args, Line, State) -> {Core,State}.
 
+-ifdef(HAS_MAPS).
 comp_map(Args, Env, L, St) ->
     Mapper = fun (Cas, _, L, St) ->
                      Pairs = comp_mappairs(Cas, assoc, L),
@@ -831,29 +836,16 @@ comp_update_map(Map, Args, Env, L, St) ->
 comp_mappairs([K,V|Ps], Op, L) ->
     [#c_map_pair{anno=[L],op=c_lit(Op),key=K,val=V}|comp_mappairs(Ps, Op, L)];
 comp_mappairs([], _, _) -> [].
-
-comp_set_map(Args, Env, L, St) ->
-    Mapper = fun (Cas, _, L, St) ->
-                     {Cmap,Pairs} = comp_mappairs_1(Cas, assoc, L),
-                     {#c_map{anno=[L],arg=Cmap,es=Pairs},St}
-             end,
-    comp_args(Args, Mapper, Env, L, St).
-
-comp_update_map(Args, Env, L, St) ->
-    Mapper = fun (Cas, _, L, St) ->
-                     {Cmap,Pairs} = comp_mappairs_1(Cas, exact, L),
-                     {#c_map{anno=[L],arg=Cmap,es=Pairs},St}
-             end,
-    comp_args(Args, Mapper, Env, L, St).
-
-comp_mappairs_1([K,V|As], Op, L) ->
-    {Map,Pairs} = comp_mappairs_1(As, Op, L),
-    {Map,[#c_map_pair{anno=[L],op=c_lit(Op),key=K,val=V}|Pairs]};
-comp_mappairs_1([Map], _, _) -> {Map,[]}.
+-else.
+comp_map(_, _, _, St) -> {c_lit(map),St}.
+comp_set_map(_, _, _, _, St) -> {c_lit(map),St}.
+comp_update_map(_, _, _, _, St) -> {c_lit(map),St}.
+-endif.
 
 %% comp_guard(GuardTests, Env, Line, State) -> {CoreGuard,State}.
-%% Can compile much of the guard as an expression but must wrap it all
-%% in a try, which we do here. This try has a very rigid structure.
+%%  Can compile much of the guard as an expression but must wrap it
+%%  all in a try, which we do here. This try handles exceptions in the
+%%  guard and has a very rigid structure.
 
 comp_guard([], _, _, St) -> {c_atom(true),St};  %The empty guard
 comp_guard(Gts, Env, L, St0) ->
@@ -865,7 +857,9 @@ comp_guard(Gts, Env, L, St0) ->
     {c_try(Ce, [Cv], Cv, Evs, False, L),St1}.
 
 %% comp_gtest(GuardTests, Env, Line, State) -> {CoreTest,State}.
-%% Compile a guard test, making sure it returns a boolean value.
+%%  Compile a guard test, making sure it returns a boolean value. We
+%%  do this in a naive way by always explicitly comparing the result
+%%  to 'true' and letting the optimiser clean this up. Ignore errors.
 
 %% comp_gtest([[quote,Bool]=Test], _, _, St) when is_boolean(Bool) ->
 %%     io:format("We hit it: ~p\n", [Test]),
@@ -885,11 +879,12 @@ comp_guard(Gts, Env, L, St0) ->
 %%         comp_gargs([Test,?Q(true)], Call, Env, L, St0)
 %%     end;
 comp_gtest(Ts, Env, L, St0) ->            %Not a bool test or boolean
+    %% Generate an explicit comparison with 'true' to give boolean.
     {Cg,St1} = comp_gbody(Ts, Env, L, St0),
     True = comp_lit(true),
     Call = fun (Cas, _, L, St) ->
-           {c_call(c_atom(erlang), c_atom('=:='), Cas, L),St}
-       end,
+                   {c_call(c_atom(erlang), c_atom('=:='), Cas, L),St}
+           end,
     simple_seq([Cg,True], Call, Env, L, St1).
 
 %% comp_gbody(Body, Env, Line, State) -> {CoreBody,State}.
@@ -913,8 +908,8 @@ comp_gexpr([cdr,E], Env, L, St) ->
     comp_gexpr([tl,E], Env, L, St);
 comp_gexpr([list|Es], Env, L, St) ->
     List = fun (Ces, _, _, St) ->
-           {foldr(fun (E, T) -> c_cons(E, T) end, c_nil(), Ces),St}
-       end,
+                   {foldr(fun (E, T) -> c_cons(E, T) end, c_nil(), Ces),St}
+           end,
     comp_gargs(Es, List, Env, L, St);
 comp_gexpr([tuple|As], Env, L, St) ->
     comp_gargs(As, fun (Args, _, _, St) -> {c_tuple(Args),St} end, Env, L, St);
@@ -922,14 +917,14 @@ comp_gexpr([binary|Segs], Env, L, St) ->
     comp_binary(Segs, Env, L, St);        %And bitstring as well
 comp_gexpr([map|As], Env, L, St) ->
     comp_map(As, Env, L, St);
-comp_gexpr([set_map,Map|As], Env, L, St) ->
+comp_gexpr(['mset',Map|As], Env, L, St) ->
     comp_set_map(Map, As, Env, L, St);
-comp_gexpr([update_map,Map|As], Env, L, St) ->
+comp_gexpr(['mupd',Map|As], Env, L, St) ->
     comp_update_map(Map, As, Env, L, St);
-comp_gexpr(['mset'|As], Env, L, St) ->
-    comp_set_map(As, Env, L, St);
-comp_gexpr(['mupd'|As], Env, L, St) ->
-    comp_update_map(As, Env, L, St);
+comp_gexpr(['map_set',Map|As], Env, L, St) ->
+    comp_gexpr(['mset',Map|As], Env, L, St);
+comp_gexpr(['map_update',Map|As], Env, L, St) ->
+    comp_gexpr(['mupd',Map|As], Env, L, St);
 %% Handle the Core closure special forms.
 %% (let-syntax ...) should never be seen here!
 %% Handle the Core control special forms.
@@ -942,10 +937,10 @@ comp_gexpr([call,[quote,erlang],[quote,Fun]|As], Env, L, St) ->
 %% Finally the general case.
 comp_gexpr([Fun|As], Env, L, St) ->
     Call = fun (Cas, Env, L, St) ->
-           Ar = length(Cas),
-           {yes,M,F} = get_gbinding(Fun, Ar, Env),
-           {c_call(c_atom(M), c_atom(F), Cas, L),St}
-       end,
+                   Ar = length(Cas),
+                   {yes,M,F} = get_gbinding(Fun, Ar, Env),
+                   {c_call(c_atom(M), c_atom(F), Cas, L),St}
+           end,
     comp_gargs(As, Call, Env, L, St);
 comp_gexpr(Symb, _, _, St) when is_atom(Symb) ->
     {c_var(Symb),St};
@@ -1132,6 +1127,7 @@ pat_bitseg({Pat,Sz,{Ty,Un,Si,En}}, L, Vs0, St0) ->
     {Csize,St2} = comp_expr(Sz, noenv, L, St1),
     {c_bitseg(Cpat, Csize, c_int(Un), c_atom(Ty), c_lit([Si,En])),Vs1,St2}.
 
+-ifdef(HAS_MAPS).
 %% pat_map(Args, Line, PatVars, State) -> {#c_map{},PatVars,State}.
 
 pat_map(Args, L, Vs0, St0) ->
@@ -1148,6 +1144,9 @@ pat_map_pairs([], _, Vs, St) -> {[],Vs,St}.
 
 pat_map_key([quote,L]) -> comp_lit(L);
 pat_map_key(L) -> comp_lit(L).
+-else.
+pat_map(_, _, Vs, St) -> {c_lit(map),Vs,St}.
+-endif.
 
 %% c_call(Module, Name, Args, Line) -> #c_call{}.
 %% c_try(Arg, Vars, Body, Evars, Handler, Line) -> #c_try{}.
@@ -1212,9 +1211,8 @@ comp_lit(F) when is_float(F) -> c_float(F);
 comp_lit(Bin) when is_bitstring(Bin) ->
     Bits = comp_lit_bitsegs(Bin),
     #c_binary{anno=[],segments=Bits};
-comp_lit(Map) when is_map(Map) ->
-    Pairs = comp_lit_mappairs(maps:to_list(Map)),
-    #c_map{anno=[],arg=c_lit(#{}),es=Pairs}.
+comp_lit(Map) when ?IS_MAP(Map) ->
+    comp_lit_map(Map).
 
 comp_lit_list(Vals) -> [ comp_lit(V) || V <- Vals ].
 
@@ -1235,10 +1233,18 @@ c_byte_bitseg(B, Sz) ->
     c_bitseg(c_lit(B), c_int(Sz), c_int(1), c_atom(integer),
          c_lit([unsigned,big])).
 
+-ifdef(HAS_MAPS).
+comp_lit_map(Map) ->
+    Pairs = comp_lit_mappairs(maps:to_list(Map)),
+    #c_map{anno=[],arg=c_lit(#{}),es=Pairs}.
+
 comp_lit_mappairs([{K,V}|Ps]) ->
     [#c_map_pair{anno=[],op=c_lit(assoc),key=comp_lit(K),val=comp_lit(V)}|
      comp_lit_mappairs(Ps)];
 comp_lit_mappairs([]) -> [].
+-else.
+comp_lit_map(_) -> c_lit(map).
+-endif.
 
 %% new_symb(State) -> {Symbol,State}.
 %% Create a hopefully new unused symbol.

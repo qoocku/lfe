@@ -1,5 +1,4 @@
-%% -*- erlang -*-
-%% Copyright (c) 2013 Robert Virding
+%% Copyright (c) 2014 Robert Virding
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -13,10 +12,12 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
-{application, lfe,
- [{description, "Lisp Flavored Erlang (LFE)"},
-  {vsn, "0.9.0-dev"},
-  {modules, ['lfe_io', 'lfe_pmod', 'lfe_bits', 'lfe_trans', 'lfe_macro_include', 'lfe_comp', 'lfe_gen', 'lfe_parse', 'lfescript', 'lfe_init', 'lfe_io_pretty', 'lfe_env', 'lfe_scan', 'lfe_lint', 'lfe_lib', 'lfe_macro', 'lfe_codegen', 'lfe_io_format', 'lfe_ms', 'lfe_shell', 'lfe_qlc', 'lfe_eval', 'lfe_macro_record']},
-  {registered, []},
-  {applications, [kernel,stdlib,compiler]}
- ]}.
+%% File    : lfe.hrl
+%% Author  : Robert Virding
+%% Purpose : Common definitions.
+
+%% We do a lot of quoting!
+-define(Q(E), [quote,E]).
+-define(BQ(E), [backquote,E]).
+-define(UQ(E), [unquote,E]).
+-define(UQ_S(E), ['unquote-splicing',E]).
